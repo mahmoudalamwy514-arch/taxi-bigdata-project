@@ -2,18 +2,19 @@ from pyspark.sql import SparkSession
 from pyspark.ml import PipelineModel
 from pyspark.ml.evaluation import RegressionEvaluator
 
-spark = SparkSession.builder.appName("Evaluate").getOrCreate()
+# ================= SPARK SESSION =================
+spark = SparkSession.builder \
+    .appName("Evaluate Models") \
+    .getOrCreate()
 
-# ================= LOAD DATA =================
-df = spark.read.parquet("data/processed")
-
-train_data, test_data = df.randomSplit([0.8, 0.2], seed=42)
+# ================= LOAD TEST DATA =================
+test_data = spark.read.parquet("data/test")
 
 # ================= LOAD MODELS =================
 lr_model = PipelineModel.load("models/lr_pipeline")
 rf_model = PipelineModel.load("models/rf_pipeline")
 
-# ================= PREDICT =================
+# ================= PREDICTIONS =================
 lr_pred = lr_model.transform(test_data)
 rf_pred = rf_model.transform(test_data)
 
@@ -24,5 +25,19 @@ evaluator = RegressionEvaluator(
     metricName="rmse"
 )
 
-print("LR RMSE:", evaluator.evaluate(lr_pred))
-print("RF RMSE:", evaluator.evaluate(rf_pred))
+# Calculate RMSE
+lr_rmse = evaluator.evaluate(lr_pred)
+rf_rmse = evaluator.evaluate(rf_pred)
+
+# ================= RESULTS =================
+print(f"Linear Regression RMSE: {lr_rmse:.2f}")
+print(f"Random Forest RMSE: {rf_rmse:.2f}")
+
+# Compare models
+if lr_rmse < rf_rmse:
+    print("Best Model: Linear Regression")
+else:
+    print("Best Model: Random Forest")
+
+# ================= STOP SPARK =================
+spark.stop()
